@@ -1,22 +1,22 @@
-/*************************************************** 
+/***************************************************
   This is a library for the MPR121 12-Channel Capacitive Sensor
 
   Designed specifically to work with the MPR121 breakout from Adafruit
   ----> https://www.adafruit.com/products/1982
 
-  These sensors use I2C to communicate, 2+ pins are required to  
+  These sensors use I2C to communicate, 2+ pins are required to
   interface
-  Adafruit invests time and resources providing this open source code, 
-  please support Adafruit and open-source hardware by purchasing 
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing
   products from Adafruit!
 
-  Written by Limor Fried/Ladyada for Adafruit Industries.  
+  Written by Limor Fried/Ladyada for Adafruit Industries.
   BSD license, all text above must be included in any redistribution
  ****************************************************/
 
 #ifndef ADAFRUIT_MPR121_H
 #define ADAFRUIT_MPR121_H
- 
+
 #if (ARDUINO >= 100)
  #include "Arduino.h"
 #else
@@ -44,6 +44,18 @@
 #define MPR121_NCLT         0x34
 #define MPR121_FDLT         0x35
 
+#define MPR121_PROXI_MHDR         0x2B
+#define MPR121_PROXI_NHDR         0x2C
+#define MPR121_PROXI_NCLR         0x2D
+#define MPR121_PROXI_FDLR         0x2E
+#define MPR121_PROXI_MHDF         0x2F
+#define MPR121_PROXI_NHDF         0x30
+#define MPR121_PROXI_NCLF         0x31
+#define MPR121_PROXI_FDLF         0x32
+#define MPR121_PROXI_NHDT         0x33
+#define MPR121_PROXI_NCLT         0x34
+#define MPR121_PROXI_FDLT         0x35
+
 #define MPR121_TOUCHTH_0    0x41
 #define MPR121_RELEASETH_0    0x42
 #define MPR121_DEBOUNCE 0x5B
@@ -64,8 +76,6 @@
 #define MPR121_GPIOCLR  0x79
 #define MPR121_GPIOTOGGLE  0x7A
 
-
-
 #define MPR121_SOFTRESET 0x80
 
 //.. thru to 0x1C/0x1D
@@ -78,17 +88,24 @@ class Adafruit_MPR121 {
 
   uint16_t filteredData(uint8_t t);
   uint16_t  baselineData(uint8_t t);
-
-  uint8_t readRegister8(uint8_t reg);
-  uint16_t readRegister16(uint8_t reg);
-  void writeRegister(uint8_t reg, uint8_t value);
   uint16_t touched(void);
-  // Add deprecated attribute so that the compiler shows a warning
-  __attribute__((deprecated)) void setThreshholds(uint8_t touch, uint8_t release);
+
   void setThresholds(uint8_t touch, uint8_t release);
+  void setProximitySensing(bool b);
+
+  //! global measurement current in uA, range [0 ... 63 uA]
+  void setMeasurementCurrent(uint8_t mc);
+
+  //! channel specific measurement current in uA, range [0 ... 63 uA]
+  void setChannelMeasurementCurrent(uint8_t ch, uint8_t mc);
 
  private:
-  int8_t _i2caddr;
+
+   uint8_t readRegister8(uint8_t reg);
+   uint16_t readRegister16(uint8_t reg);
+   void writeRegister(uint8_t reg, uint8_t value);
+
+   int8_t _i2caddr;
 };
 
 #endif // ADAFRUIT_MPR121_H

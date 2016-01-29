@@ -1,16 +1,16 @@
-/*************************************************** 
+/***************************************************
   This is a library for the MPR121 I2C 12-chan Capacitive Sensor
 
   Designed specifically to work with the MPR121 sensor from Adafruit
   ----> https://www.adafruit.com/products/1982
 
-  These sensors use I2C to communicate, 2+ pins are required to  
+  These sensors use I2C to communicate, 2+ pins are required to
   interface
-  Adafruit invests time and resources providing this open source code, 
-  please support Adafruit and open-source hardware by purchasing 
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing
   products from Adafruit!
 
-  Written by Limor Fried/Ladyada for Adafruit Industries.  
+  Written by Limor Fried/Ladyada for Adafruit Industries.
   BSD license, all text above must be included in any redistribution
  ****************************************************/
 
@@ -21,26 +21,25 @@ Adafruit_MPR121::Adafruit_MPR121() {
 
 boolean Adafruit_MPR121::begin(uint8_t i2caddr) {
   Wire.begin();
-    
+
   _i2caddr = i2caddr;
 
   // soft reset
   writeRegister(MPR121_SOFTRESET, 0x63);
   delay(1);
   for (uint8_t i=0; i<0x7F; i++) {
-  //  Serial.print("$"); Serial.print(i, HEX); 
+  //  Serial.print("$"); Serial.print(i, HEX);
   //  Serial.print(": 0x"); Serial.println(readRegister8(i));
   }
-  
 
   writeRegister(MPR121_ECR, 0x0);
 
   uint8_t c = readRegister8(MPR121_CONFIG2);
-  
+
   if (c != 0x24) return false;
 
+  setThresholds(12, 6);
 
-  setThreshholds(12, 6);
   writeRegister(MPR121_MHDR, 0x01);
   writeRegister(MPR121_NHDR, 0x01);
   writeRegister(MPR121_NCLR, 0x0E);
@@ -56,33 +55,77 @@ boolean Adafruit_MPR121::begin(uint8_t i2caddr) {
   writeRegister(MPR121_FDLT, 0x00);
 
   writeRegister(MPR121_DEBOUNCE, 0);
-  writeRegister(MPR121_CONFIG1, 0x10); // default, 16uA charge current
-  writeRegister(MPR121_CONFIG2, 0x20); // 0.5uS encoding, 1ms period
+
+  // proxi registers
+  writeRegister(MPR121_PROXI_MHDR, 0xFF);
+  writeRegister(MPR121_PROXI_NHDR, 0xFF);
+  writeRegister(MPR121_PROXI_NCLR, 0x00);
+  writeRegister(MPR121_PROXI_FDLR, 0x00);
+  writeRegister(MPR121_PROXI_MHDF, 0x01);
+  writeRegister(MPR121_PROXI_NHDF, 0x01);
+  writeRegister(MPR121_PROXI_NCLF, 0xFF);
+  writeRegister(MPR121_PROXI_FDLF, 0xFF);
+  writeRegister(MPR121_PROXI_NHDT, 0x00);
+  writeRegister(MPR121_PROXI_NCLT, 0x00);
+  writeRegister(MPR121_PROXI_FDLT, 0x00);
+
+  // writeRegister(MPR121_CONFIG1, 0x10); // default, 16uA charge current
+  // writeRegister(MPR121_CONFIG2, 0x20); // 0.5uS encoding, 1ms period
+  setMeasurementCurrent(63);
 
 //  writeRegister(MPR121_AUTOCONFIG0, 0x8F);
 
 //  writeRegister(MPR121_UPLIMIT, 150);
 //  writeRegister(MPR121_TARGETLIMIT, 100); // should be ~400 (100 shifted)
 //  writeRegister(MPR121_LOWLIMIT, 50);
+
   // enable all electrodes
-  writeRegister(MPR121_ECR, 0x8F);  // start with first 5 bits of baseline tracking
+  // writeRegister(MPR121_ECR, 0xBF);  // start with first 5 bits of baseline tracking
+  // setProximitySensing(false);
 
   return true;
 }
 
-void Adafruit_MPR121::setThreshholds(uint8_t touch, uint8_t release) {
+void Adafruit_MPR121::setProximitySensing(bool b){
+  // enable all electrodes
+  // start with first 5 bits of baseline tracking
+  // optionally enable proximity
 
-  setThresholds(touch, release);
-  }
+  //0x8F : no proximity sensing
+  //0x9F : 0-1 as proxi-electrodes
+  //0xAF : 0-4 as proxi-electrodes
+  //0xBF : 0-11 as proxi-electrodes
+  writeRegister(MPR121_ECR, b ? 0x9F : 0x8F);
+}
 
 void Adafruit_MPR121::setThresholds(uint8_t touch, uint8_t release) {
-  for (uint8_t i=0; i<12; i++) {
+  uint8_t v = readRegister8(MPR121_ECR);
+  writeRegister(MPR121_ECR, 0x0);
+
+  for (uint8_t i = 0; i < 13; i++) {
     writeRegister(MPR121_TOUCHTH_0 + 2*i, touch);
     writeRegister(MPR121_RELEASETH_0 + 2*i, release);
   }
+  writeRegister(MPR121_ECR, v);
 }
 
-uint16_t  Adafruit_MPR121::filteredData(uint8_t t) {
+void Adafruit_MPR121::setMeasurementCurrent(uint8_t mc){
+  if(mc > 63){ mc = 63; }
+  uint8_t v = readRegister8(MPR121_ECR);
+  writeRegister(MPR121_ECR, 0x0);
+
+  writeRegister(MPR121_CONFIG1, mc);
+  writeRegister(MPR121_CONFIG2, 0x20); // 0.5uS encoding, 1ms period
+
+  writeRegister(MPR121_ECR, v);
+}
+
+void setChannelMeasurementCurrent(uint8_t ch, uint8_t mc){
+  if(mc > 63){ mc = 63; }
+  // writeRegister(MPR121_CONFIG1, mc);
+}
+
+uint16_t Adafruit_MPR121::filteredData(uint8_t t) {
   if (t > 12) return 0;
   return readRegister16(MPR121_FILTDATA_0L + t*2);
 }
@@ -95,7 +138,7 @@ uint16_t  Adafruit_MPR121::baselineData(uint8_t t) {
 
 uint16_t  Adafruit_MPR121::touched(void) {
   uint16_t t = readRegister16(MPR121_TOUCHSTATUS_L);
-  return t & 0x0FFF;
+  return t & 0x1FFF;
 }
 
 /*********************************************************************/
