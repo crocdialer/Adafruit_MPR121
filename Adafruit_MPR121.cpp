@@ -22,6 +22,7 @@ Adafruit_MPR121::Adafruit_MPR121() {
 boolean Adafruit_MPR121::begin(uint8_t i2caddr) {
   Wire.begin();
 
+  m_mode = DISABLED;
   _i2caddr = i2caddr;
 
   // soft reset
@@ -71,53 +72,43 @@ boolean Adafruit_MPR121::begin(uint8_t i2caddr) {
 
   // writeRegister(MPR121_CONFIG1, 0x10); // default, 16uA charge current
   // writeRegister(MPR121_CONFIG2, 0x20); // 0.5uS encoding, 1ms period
-  setMeasurementCurrent(63);
-
+  setMeasurementCurrent(32);
 //  writeRegister(MPR121_AUTOCONFIG0, 0x8F);
-
 //  writeRegister(MPR121_UPLIMIT, 150);
 //  writeRegister(MPR121_TARGETLIMIT, 100); // should be ~400 (100 shifted)
 //  writeRegister(MPR121_LOWLIMIT, 50);
 
-  // enable all electrodes
-  // writeRegister(MPR121_ECR, 0xBF);  // start with first 5 bits of baseline tracking
-  // setProximitySensing(false);
-
   return true;
 }
 
-void Adafruit_MPR121::setProximitySensing(bool b){
-  // enable all electrodes
-  // start with first 5 bits of baseline tracking
-  // optionally enable proximity
+Adafruit_MPR121::Mode Adafruit_MPR121::mode() const
+{
+    return m_mode;
+}
 
-  //0x8F : no proximity sensing
-  //0x9F : 0-1 as proxi-electrodes
-  //0xAF : 0-4 as proxi-electrodes
-  //0xBF : 0-11 as proxi-electrodes
-  writeRegister(MPR121_ECR, b ? 0x9F : 0x8F);
+void Adafruit_MPR121::set_mode(Adafruit_MPR121::Mode m)
+{
+    if(m_mode != m)
+    {
+        writeRegister(MPR121_ECR, m);
+        m_mode = m;
+    }
 }
 
 void Adafruit_MPR121::setThresholds(uint8_t touch, uint8_t release) {
-  uint8_t v = readRegister8(MPR121_ECR);
-  writeRegister(MPR121_ECR, 0x0);
+  scoped_mode_change sc(this);
 
   for (uint8_t i = 0; i < 13; i++) {
     writeRegister(MPR121_TOUCHTH_0 + 2*i, touch);
     writeRegister(MPR121_RELEASETH_0 + 2*i, release);
   }
-  writeRegister(MPR121_ECR, v);
 }
 
 void Adafruit_MPR121::setMeasurementCurrent(uint8_t mc){
   if(mc > 63){ mc = 63; }
-  uint8_t v = readRegister8(MPR121_ECR);
-  writeRegister(MPR121_ECR, 0x0);
-
+  scoped_mode_change sc(this);
   writeRegister(MPR121_CONFIG1, mc);
   writeRegister(MPR121_CONFIG2, 0x20); // 0.5uS encoding, 1ms period
-
-  writeRegister(MPR121_ECR, v);
 }
 
 void setChannelMeasurementCurrent(uint8_t ch, uint8_t mc){

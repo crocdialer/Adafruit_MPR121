@@ -44,17 +44,17 @@
 #define MPR121_NCLT         0x34
 #define MPR121_FDLT         0x35
 
-#define MPR121_PROXI_MHDR         0x2B
-#define MPR121_PROXI_NHDR         0x2C
-#define MPR121_PROXI_NCLR         0x2D
-#define MPR121_PROXI_FDLR         0x2E
-#define MPR121_PROXI_MHDF         0x2F
-#define MPR121_PROXI_NHDF         0x30
-#define MPR121_PROXI_NCLF         0x31
-#define MPR121_PROXI_FDLF         0x32
-#define MPR121_PROXI_NHDT         0x33
-#define MPR121_PROXI_NCLT         0x34
-#define MPR121_PROXI_FDLT         0x35
+#define MPR121_PROXI_MHDR         0x36
+#define MPR121_PROXI_NHDR         0x37
+#define MPR121_PROXI_NCLR         0x38
+#define MPR121_PROXI_FDLR         0x39
+#define MPR121_PROXI_MHDF         0x3A
+#define MPR121_PROXI_NHDF         0x3B
+#define MPR121_PROXI_NCLF         0x3C
+#define MPR121_PROXI_FDLF         0x3D
+#define MPR121_PROXI_NHDT         0x3E
+#define MPR121_PROXI_NCLT         0x3F
+#define MPR121_PROXI_FDLT         0x40
 
 #define MPR121_TOUCHTH_0    0x41
 #define MPR121_RELEASETH_0    0x42
@@ -81,6 +81,16 @@
 //.. thru to 0x1C/0x1D
 class Adafruit_MPR121 {
  public:
+
+  enum Mode
+  {
+      DISABLED = 0x00,
+      ENABLED = 0x8F,
+      PROXI_01 = 0x9F,
+      PROXI_04 = 0xAF,
+      PROXI_ALL = 0xBF
+  };
+
   // Hardware I2C
   Adafruit_MPR121(void);
 
@@ -91,13 +101,15 @@ class Adafruit_MPR121 {
   uint16_t touched(void);
 
   void setThresholds(uint8_t touch, uint8_t release);
-  void setProximitySensing(bool b);
 
   //! global measurement current in uA, range [0 ... 63 uA]
   void setMeasurementCurrent(uint8_t mc);
 
   //! channel specific measurement current in uA, range [0 ... 63 uA]
   void setChannelMeasurementCurrent(uint8_t ch, uint8_t mc);
+
+  Mode mode() const;
+  void set_mode(Mode m);
 
  private:
 
@@ -106,6 +118,22 @@ class Adafruit_MPR121 {
    void writeRegister(uint8_t reg, uint8_t value);
 
    int8_t _i2caddr;
+   Mode m_mode;
+};
+
+class scoped_mode_change
+{
+public:
+    scoped_mode_change(Adafruit_MPR121* the_ptr):
+    m_ptr(the_ptr)
+    {
+        m_mode = m_ptr->mode();
+        m_ptr->set_mode(Adafruit_MPR121::DISABLED);
+    }
+    ~scoped_mode_change(){ m_ptr->set_mode(m_mode); }
+private:
+    Adafruit_MPR121* m_ptr = nullptr;
+    Adafruit_MPR121::Mode m_mode;
 };
 
 #endif // ADAFRUIT_MPR121_H
