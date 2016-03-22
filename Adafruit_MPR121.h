@@ -102,11 +102,11 @@ class Adafruit_MPR121 {
 
   void setThresholds(uint8_t touch, uint8_t release);
 
-  //! global measurement current in uA, range [0 ... 63 uA]
-  void setMeasurementCurrent(uint8_t mc);
+  //! global electrode charge current in uA, range [0 ... 63 uA]
+  void setChargeCurrent(uint8_t mc);
 
   //! channel specific measurement current in uA, range [0 ... 63 uA]
-  void setChannelMeasurementCurrent(uint8_t ch, uint8_t mc);
+  void setChannelChargeCurrent(uint8_t ch, uint8_t mc);
 
   Mode mode() const;
   void set_mode(Mode m);
@@ -121,16 +121,16 @@ class Adafruit_MPR121 {
    Mode m_mode;
 };
 
-class scoped_mode_change
+class scoped_disable
 {
 public:
-    scoped_mode_change(Adafruit_MPR121* the_ptr):
+    explicit scoped_disable(Adafruit_MPR121* the_ptr):
     m_ptr(the_ptr)
     {
         m_mode = m_ptr->mode();
         m_ptr->set_mode(Adafruit_MPR121::DISABLED);
     }
-    ~scoped_mode_change(){ m_ptr->set_mode(m_mode); }
+    ~scoped_disable(){ m_ptr->set_mode(m_mode); }
 private:
     Adafruit_MPR121* m_ptr = nullptr;
     Adafruit_MPR121::Mode m_mode;
