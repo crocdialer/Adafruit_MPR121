@@ -12,6 +12,11 @@
 
   Written by Limor Fried/Ladyada for Adafruit Industries.
   BSD license, all text above must be included in any redistribution
+
+  04-2016 crocdialer@googlemail.com:
+  added access to MPR121 proximity sensing.
+  different configurations are available to provide a virtual 13th electrode
+  for proximity sensing.
  ****************************************************/
 
 #ifndef ADAFRUIT_MPR121_H
@@ -94,6 +99,11 @@ class Adafruit_MPR121 {
   // Hardware I2C
   Adafruit_MPR121(void);
 
+  /*!
+   * begin operation of a MPR121 device connected on i2c-bus with address i2caddr
+   * Default address is 0x5A, if tied to 3.3V its 0x5B
+   * If tied to SDA its 0x5C and if SCL then 0x5D
+   */
   boolean begin(uint8_t i2caddr = MPR121_I2CADDR_DEFAULT);
 
   uint16_t filteredData(uint8_t t);
@@ -103,13 +113,13 @@ class Adafruit_MPR121 {
   void setThresholds(uint8_t touch, uint8_t release);
 
   //! global electrode charge current in uA, range [0 ... 63 uA]
-  void setChargeCurrent(uint8_t mc);
+  void setChargeCurrentAndTime(uint8_t the_current, uint8_t the_time = 1);
 
   //! channel specific measurement current in uA, range [0 ... 63 uA]
   void setChannelChargeCurrent(uint8_t ch, uint8_t mc);
 
   Mode mode() const;
-  void set_mode(Mode m);
+  void setMode(Mode m);
 
  private:
 
@@ -119,21 +129,6 @@ class Adafruit_MPR121 {
 
    int8_t _i2caddr;
    Mode m_mode;
-};
-
-class scoped_disable
-{
-public:
-    explicit scoped_disable(Adafruit_MPR121* the_ptr):
-    m_ptr(the_ptr)
-    {
-        m_mode = m_ptr->mode();
-        m_ptr->set_mode(Adafruit_MPR121::DISABLED);
-    }
-    ~scoped_disable(){ m_ptr->set_mode(m_mode); }
-private:
-    Adafruit_MPR121* m_ptr = nullptr;
-    Adafruit_MPR121::Mode m_mode;
 };
 
 #endif // ADAFRUIT_MPR121_H

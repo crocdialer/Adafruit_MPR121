@@ -16,6 +16,24 @@
 
 #include "Adafruit_MPR121.h"
 
+/*!
+* RAII helper class for temporary deactivation of all touch sensing
+*/
+class scoped_disable
+{
+public:
+    explicit scoped_disable(Adafruit_MPR121* the_ptr):
+    m_ptr(the_ptr)
+    {
+        m_mode = m_ptr->mode();
+        m_ptr->setMode(Adafruit_MPR121::DISABLED);
+    }
+    ~scoped_disable(){ m_ptr->setMode(m_mode); }
+private:
+    Adafruit_MPR121* m_ptr = nullptr;
+    Adafruit_MPR121::Mode m_mode;
+};
+
 Adafruit_MPR121::Adafruit_MPR121() {
 }
 
@@ -30,15 +48,14 @@ boolean Adafruit_MPR121::begin(uint8_t i2caddr) {
   //  Serial.print("$"); Serial.print(i, HEX);
   //  Serial.print(": 0x"); Serial.println(readRegister8(i));
   }
-  m_mode = DISABLED;
-  writeRegister(MPR121_ECR, 0x0);
+  setMode(DISABLED);
 
   uint8_t c = readRegister8(MPR121_CONFIG2);
 
   if (c != 0x24) return false;
 
   setThresholds(12, 6);
-  setChargeCurrent(16);
+  setChargeCurrentAndTime(16);
 
   writeRegister(MPR121_MHDR, 0x01);
   writeRegister(MPR121_NHDR, 0x01);
@@ -69,13 +86,7 @@ boolean Adafruit_MPR121::begin(uint8_t i2caddr) {
   writeRegister(MPR121_PROXI_NCLT, 0x00);
   writeRegister(MPR121_PROXI_FDLT, 0x00);
 
-  set_mode(ENABLED);
-
-//  writeRegister(MPR121_AUTOCONFIG0, 0x8F);
-//  writeRegister(MPR121_UPLIMIT, 150);
-//  writeRegister(MPR121_TARGETLIMIT, 100); // should be ~400 (100 shifted)
-//  writeRegister(MPR121_LOWLIMIT, 50);
-
+  setMode(ENABLED);
   return true;
 }
 
@@ -84,29 +95,39 @@ Adafruit_MPR121::Mode Adafruit_MPR121::mode() const
     return m_mode;
 }
 
-void Adafruit_MPR121::set_mode(Adafruit_MPR121::Mode m)
+void Adafruit_MPR121::setMode(Adafruit_MPR121::Mode m)
 {
-    // if(m_mode != m)
-    {
-        writeRegister(MPR121_ECR, m);
-        m_mode = m;
-    }
+    writeRegister(MPR121_ECR, m);
+    m_mode = m;
 }
 
 void Adafruit_MPR121::setThresholds(uint8_t touch, uint8_t release) {
-  scoped_disable sd(this);
+    scoped_disable sd(this);
 
-  for (uint8_t i = 0; i < 13; i++) {
-    writeRegister(MPR121_TOUCHTH_0 + 2*i, touch);
-    writeRegister(MPR121_RELEASETH_0 + 2*i, release);
-  }
+    for(uint8_t i = 0; i < 13; i++) {
+        writeRegister(MPR121_TOUCHTH_0 + 2*i, touch);
+        writeRegister(MPR121_RELEASETH_0 + 2*i, release);
+    }
 }
 
-void Adafruit_MPR121::setChargeCurrent(uint8_t mc){
-  if(mc > 63){ mc = 63; }
-  scoped_disable sd(this);
-  writeRegister(MPR121_CONFIG1, mc);
-  writeRegister(MPR121_CONFIG2, 0x20); // 0.5uS encoding, 1ms period
+void Adafruit_MPR121::setChargeCurrentAndTime(uint8_t the_current,
+                                              uint8_t the_time){
+    if(the_current > 63){ the_current = 63; }
+    scoped_disable sd(this);
+    writeRegister(MPR121_CONFIG1, the_current);
+
+    // Charge Discharge Time
+    // Selects the global value of charge time applied to electrode.
+    // The maximum is 32 μs, programmable as 2 ^(n-2) μs
+    // 001 Encoding 1 - Time is set to 0.5 μs (Default)
+    // ...
+    // 111 Encoding 7 - Time is set to 32 μs
+
+    // Charge/Discharge Time: 3 bits (default: 001 -> 0.5 μs)
+    // Second Filter Iterations: 2 bits (default 00 -> 4 samples)
+    // Electrode Sample Interval: 3 bits (default 100 -> 16 ms)
+    uint8_t CDT_SFI_ESI = (the_time << 5) | (0x0 << 3) | (0x0); //readRegister8(MPR121_CONFIG2);
+    writeRegister(MPR121_CONFIG2, CDT_SFI_ESI);
 }
 
 void setChannelChargeCurrent(uint8_t ch, uint8_t mc){
